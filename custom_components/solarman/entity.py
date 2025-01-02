@@ -135,26 +135,70 @@ class SolarmanWritableEntity(SolarmanEntity):
     def __init__(self, coordinator, sensor):
         super().__init__(coordinator, sensor)
 
-        #self._write_lock = "locked" in sensor
-
         if not "control" in sensor:
             self._attr_entity_category = EntityCategory.CONFIG
 
         self.code = get_code(sensor, "write", CODE.WRITE_MULTIPLE_REGISTERS)
         self.register = min(self.registers) if len(self.registers) > 0 else None
 
+        #dependencies:
+        #  start: 0x1040
+        #  length: 2
+        #  data: 
+        #    - 0x1053: 1
+        #
+        self.dependency_register = None
+        self.dependency_data = None
+        self.dependency_code = None
+        if "dependencies" in sensor:
+            self.dependency_code = get_code(sensor["dependencies"], "read", CODE.READ_HOLDING_REGISTERS)
+            self.dependency_register = sensor["dependencies"]["start"]
+            self.dependency_data = [None for _ in range(sensor["dependencies"]["length"])]
+            if "data" in sensor["dependencies"]:
+                l = sensor["dependencies"]["data"]
+                for d in l:
+                    for k, v in d.items():
+                        self.dependency_data[k - self.dependency_register] = v
+        self.deps_to_resolve = None if self.dependency_data is None else None in self.dependency_data
+        self.write_register = min(self.register, self.dependency_register) if self.dependency_register is not None else self.register
+
+        _LOGGER.warning(f"Dependency: \nCode: {self.dependency_code}\nRegister: {self.dependency_register}\nData: {self.dependency_data}")
+
+
     async def write(self, value, state = None) -> None:
-        #self.coordinator.inverter.check(self._write_lock)
+        negative = value < 0
         if isinstance(value, int):
-            if value > 0xFFFF:
+            #Signed split
+            if negative:
+                value = list(ssplit_p16b(value))
+            #Unsigned split
+            else:
                 value = list(split_p16b(value))
-            if len(self.registers) > 1:
-                value = ensure_list(value)
         if isinstance(value, list):
             while len(self.registers) > len(value):
-                value.insert(0, 0)
-        if await self.coordinator.inverter.call(self.code, self.register, value) > 0 and state is not None:
+                if negative:
+                    value.insert(0, 0xFFFF)
+                else:
+                    value.insert(0, 0)
+
+        write_value = value
+        if self.dependency_register is not None:
+            data = self.dependency_data.copy()
+            #Query old values
+            if self.deps_to_resolve:
+                old_value = await self.coordinator.inverter.call(self.dependency_code, self.dependency_register, len(self.dependency_data))
+                #Replace None values with old values
+                for i in range(len(data)):
+                    if data[i] is None:
+                        data[i] = old_value[i]
+            #Copy value to data array
+            offset = self.register - self.dependency_register
+            write_value = ensure_list(write_value)
+            for i in range(len(write_value)):
+                data[offset + i] = write_value[i]
+            _LOGGER.warning(f"Writing: {data}\nLength: {len(data)}\nAt: {self.dependency_register:04X}")
+            write_value = data  
+        
+        if await self.coordinator.inverter.call(self.code, self.write_register, write_value) > 0 and state is not None:
             self.set_state(state, value)
             self.async_write_ha_state()
-            #await self.entity_description.update_fn(self.coordinator., int(value))
-            #await self.coordinator.async_request_refresh()

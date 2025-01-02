@@ -132,3 +132,4 @@ DEPRECATION_SERVICE_WRITE_MULTIPLE_REGISTERS = "write_multiple_holding_registers
 
 DATETIME_FORMAT = "%y/%m/%d %H:%M:%S"
 TIME_FORMAT = "%H:%M"
+DATE_FORMAT = "%m/%d"

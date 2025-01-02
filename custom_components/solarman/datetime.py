@@ -63,3 +63,4 @@ class SolarmanDateTimeEntity(SolarmanWritableEntity, DateTimeEntity):
     async def async_set_value(self, value: datetime) -> None:
         """Change the date/time."""
         await self.write(self._to_native_value(value), value.strftime(DATETIME_FORMAT))
+ # type: ignore

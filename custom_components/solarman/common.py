@@ -240,6 +240,11 @@ def split_p16b(value):
         yield value & 0xFFFF
         value = value >> 16
 
+def ssplit_p16b(value):
+    while value & 0xFFFF != 0xFFFF:
+        yield value & 0xFFFF
+        value = value >> 16
+
 def div_mod(dividend, divisor):
     return (dividend // divisor, dividend % divisor)
 

@@ -900,3 +900,299 @@ parameters:
             value: "ID191 PID repair failed"
           - key: 32768
             value: "ID192 PLC module heartbeat loss"
+
+  - group: Settings
+    items:
+      - name: "Storage Control Mode"
+        platform: select
+        rule: 1
+        registers: [0x1110]
+        lookup:
+          - key: 0
+            value: "Self Use"
+          - key: 1
+            value: "Time of Use"
+          - key: 2
+            value: "Timed mode"
+          - key: 3
+            value: "Passive"
+          - key: 4
+            value: "Peak Shaving"
+        icon: "mdi:power-settings"
+        
+  - group: TOU Settings
+    items:
+      - name: "TOU Profile"
+        platform: select
+        rule: 1
+        registers: [0x1120]
+        lookup:
+          - key: 0
+            value: "Profile 0"
+          - key: 1
+            value: "Profile 1"
+          - key: 2
+            value: "Profile 2"
+          - key: 3
+            value: "Profile 3"
+          - key: 4
+            value: "Profile 4"
+          - key: 5
+            value: "Profile 5"
+          - key: 6
+            value: "Profile 6"
+          - key: 7
+            value: "Profile 7"
+        mode: "box"
+      - name: "TOU Profile Enable"
+        platform: switch
+        rule: 1
+        registers: [0x01121]
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+      - name: "TOU Charge Start Time"
+        platform: time
+        dec: 256
+        rule: 9
+        registers: [0x01122]
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+      - name: "TOU Charge End Time"
+        platform: time
+        dec: 256
+        rule: 9
+        registers: [0x01123]
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+      - name: "TOU Target SOC"
+        platform: number
+        rule: 1
+        registers: [0x1124]
+        range:
+          min: 30
+          max: 100
+        mode: "slider"
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+      - name: "TOU Charge Power"
+        platform: number
+        rule: 1
+        registers: [0x1126, 0x1125]
+        range: 
+          min: 1
+          max: 4294967296
+        mode: "box"
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+      - name: "TOU Charge Start Date"
+        platform: date
+        dec: 256
+        rule: 11
+        registers: [0x1127]
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+      - name: "TOU Charge End Date"
+        platform: date
+        dec: 256
+        rule: 11
+        registers: [0x1128]
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+      - name: "TOU Day of Week"
+        platform: number
+        rule: 1
+        registers: [0x1129]
+        range:
+          min: 0
+          max: 127
+        mode: "box"
+        dependencies:
+          start: 0x1120
+          length: 16
+          data:
+            - 0x112F: 1
+            
+  - group: Timed Mode Settings
+    items:
+      - name: "Timing Profile"
+        platform: select
+        rule: 1
+        registers: [0x1111]
+        lookup:
+          - key: 0
+            value: "Profile 0"
+          - key: 1
+            value: "Profile 1"
+          - key: 2
+            value: "Profile 2"
+          - key: 3
+            value: "Profile 3"
+      - name: "Timing Profile Enable"
+        platform: select
+        lookup:
+          - key: 0
+            value: "Both disabled"
+          - key: 1
+            value: "Charge enabled"
+          - key: 2
+            value: "Discharge enabled"
+          - key: 3
+            value: "Both enabled"
+        rule: 1
+        registers: [0x1112]
+        dependencies:
+          start: 0x1111
+          length: 15
+          data:
+            - 0x111F: 1
+      - name: "Timing Charge Start Time"
+        platform: time
+        dec: 256
+        rule: 9
+        registers: [0x1113]
+        dependencies:
+          start: 0x1111
+          length: 15
+          data:
+            - 0x111F: 1
+      - name: "Timing Charge End Time"
+        platform: time
+        dec: 256
+        rule: 9
+        registers: [0x1114]
+        dependencies:
+          start: 0x1111
+          length: 15
+          data:
+            - 0x111F: 1
+      - name: "Timing Discharge Start Time"
+        platform: time
+        dec: 256
+        rule: 9
+        registers: [0x1115]
+        dependencies:
+          start: 0x1111
+          length: 15
+          data:
+            - 0x111F: 1
+      - name: "Timing Discharge End Time"
+        platform: time
+        dec: 256
+        rule: 9
+        registers: [0x1116]
+        dependencies:
+          start: 0x1111
+          length: 15
+          data:
+            - 0x111F: 1
+      - name: "Timing Charge Power"
+        platform: number
+        rule: 1
+        registers: [0x1118, 0x1117]
+        range: 
+          min: 0
+          max: 4294967296
+        mode: "box"
+        dependencies:
+          start: 0x1111
+          length: 15
+          data:
+            - 0x111F: 1
+      - name: "Timing Discharge Power"
+        platform: number
+        rule: 1
+        registers: [0x111A, 0x1119]
+        range: 
+          min: 0
+          max: 4294967296
+        mode: "box"
+        dependencies:
+          start: 0x1111
+          length: 15
+          data:
+            - 0x111F: 1
+  
+  - group: Passive Mode Settings
+    items:
+      - name: "Passive Timeout"
+        uom: "s"
+        platform: number
+        rule: 1
+        registers: [0x1184]
+        range:
+          min: 0
+          max: 65535
+        mode: "box"
+        dependencies:
+          start: 0x1184
+          length: 2
+      - name: "Passive Timeout Action"
+        platform: select
+        rule: 1
+        registers: [0x1185]
+        lookup:
+          - key: 0
+            value: "Forced standby"
+          - key: 1
+            value: "Restore to previous state"
+        dependencies:
+          start: 0x1184
+          length: 2
+      - name: "Passive Desired Grid Power"
+        platform: number
+        rule: 4
+        registers: [0x1188, 0x1187]
+        range: 
+          min: -2147483648
+          max: 2147483647
+        mode: "box"
+        dependencies:
+          start: 0x1187
+          length: 6
+      - name: "Passive Battery Min Power"
+        platform: number
+        rule: 4
+        registers: [0x118A, 0x1189]
+        range: 
+          min: -2147483648
+          max: 2147483647
+        mode: "box"
+        dependencies:
+          start: 0x1187
+          length: 6
+      - name: "Passive Battery Max Power"
+        platform: number
+        rule: 4
+        registers: [0x118C, 0x118B]
+        range: 
+          min: -2147483648
+          max: 2147483647
+        mode: "box"
+        dependencies:
+          start: 0x1187
+          length: 6
+          
+          
+          
+

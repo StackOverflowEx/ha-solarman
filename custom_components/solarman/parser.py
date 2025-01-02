@@ -4,7 +4,7 @@ import re
 import bisect
 import logging
 
-from datetime import datetime
+from datetime import datetime # type: ignore
 
 from .const import *
 from .common import *
@@ -42,7 +42,7 @@ class ParameterParser:
         _LOGGER.debug(f"{'Defaults' if 'default' in profile else 'Stock values'} for update_interval: {self._update_interval}, code: {self._code}, min_span: {self._min_span}, max_size: {self._max_size}, digits: {self._digits}")
 
         table = {r: get_request_code(pr) for pr in profile["requests"] for r in range(pr[REQUEST_START], pr[REQUEST_END] + 1)} if "requests" in profile and not "requests_fine_control" in profile else {}
-
+        
         self._items = sorted([process_descriptions(item, group, table, self._code, attr["mod"]) for group in profile["parameters"] for item in group["items"] if len((a := item.keys() & attr.keys())) == 0 or ((k := next(iter(a))) and item[k] <= attr[k])], key = lambda x: (get_code(x, "read", self._code), max(x["registers"])) if "registers" in x else (-1, -1))
 
         if (items_codes := [get_code(i, "read", self._code) for i in self._items if "registers" in i]) and (is_single_code := all_same(items_codes)):
@@ -156,6 +156,8 @@ class ParameterParser:
                 self.try_parse_time(data, definition)
             case 10:
                 self.try_parse_raw(data, definition)
+            case 11:
+                self.try_parse_date(data, definition)
 
     def _read_registers(self, data, definition):
         code = get_code(definition, "read")
@@ -209,20 +211,21 @@ class ParameterParser:
             value += (temp & 0xFFFF) << shift
             shift += 16
 
-        if not self.in_range(value, definition):
-            return None
+
+        if value > (maxint >> 1):
+            value = (value - maxint - 1) if not magnitude else -(value & (maxint >> 1))
 
         if (offset := definition.get("offset")) is not None:
             value -= offset
-
-        if value > (maxint >> 1):
-            value = (value - maxint) if not magnitude else -(value & (maxint >> 1))
 
         if (scale := definition.get("scale")) is not None:
             value *= scale
 
         if (divide := definition.get("divide")) is not None:
             value //= divide
+
+        if not self.in_range(value, definition):
+            return None
 
         return value
     
@@ -410,6 +413,36 @@ class ParameterParser:
                     value += ":"
 
         self.set_state(definition["key"], value)
+
+
+    def try_parse_date(self, data, definition):
+        code = get_code(definition, "read")
+        f, d = ("{:02d}", get_or_def(definition, "dec", 100)) if not "hex" in definition else ("{:02x}", get_or_def(definition, "hex", 0x100))
+        offset = definition.get("offset")
+        value = ""
+
+        registers_count = len(definition["registers"])
+
+        for i, r in enumerate(definition["registers"]):
+            if (temp := get_addr_value(data, code, r)) is None:
+                return
+
+            if registers_count == 1:
+                high, low = div_mod(temp, d)
+                value = str(f.format(int(high))) + "/" + str(f.format(int(low)))
+            else:
+                if temp >= d:
+                    f = "{:02d}"
+                    if offset:
+                        temp -= offset
+                    high, low = div_mod(temp, d)
+                    temp = f"{high}{low}"
+                value += str(f.format(int(temp)))
+                if i == 0 or (i == 1 and registers_count > 2):
+                    value += "/"
+
+        self.set_state(definition["key"], value)
+
 
     def try_parse_raw(self, data, definition):
         code = get_code(definition, "read")

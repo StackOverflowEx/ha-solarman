@@ -62,3 +62,4 @@ class SolarmanSelectEntity(SolarmanWritableEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
         await self.write(self.get_key(option), option)
+ # type: ignore
